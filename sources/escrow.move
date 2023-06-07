@@ -14,6 +14,9 @@ module holasui::escrow {
     use sui::transfer::{share_object, public_transfer};
     use sui::tx_context::{TxContext, sender};
 
+    // ======== Constants =========
+
+
     // ======== Errors =========
     const EWrongOwner: u64 = 0;
     const EWrongRecipient: u64 = 1;
@@ -262,19 +265,15 @@ module holasui::escrow {
         transfer_recipient_offers(offer, creator);
     }
 
+    // ======== Utility functions =========
 
-    // ======== View functions =========
-
-    public fun key_creator_coin(): String {
+    fun key_creator_coin(): String {
         utf8(b"creator_coin")
     }
 
-    public fun key_recipient_coin(): String {
+    fun key_recipient_coin(): String {
         utf8(b"recipient_coin")
     }
-
-
-    // ======== Utility functions =========
 
     fun check_creator_offer<T>(offer: &mut EscrowOffer<T>) {
         let i = 0;
