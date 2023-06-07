@@ -41,7 +41,7 @@ module holasui::escrow {
     struct EscrowOffer<phantom T> has key, store {
         id: UID,
         active: bool,
-        object_bag: ObjectBag,
+        bag: ObjectBag,
         //
         creator: address,
         creator_object_ids: vector<ID>,
@@ -106,7 +106,7 @@ module holasui::escrow {
         EscrowOffer {
             id: object::new(ctx),
             active: false,
-            object_bag: object_bag::new(ctx),
+            bag: object_bag::new(ctx),
             creator: sender(ctx),
             creator_object_ids,
             creator_coin_amount,
@@ -126,7 +126,7 @@ module holasui::escrow {
 
         assert!(vector::contains(&offer.creator_object_ids, &object::id(&item)), EWrongObject);
 
-        object_bag::add<ID, T>(&mut offer.object_bag, object::id(&item), item);
+        object_bag::add<ID, T>(&mut offer.bag, object::id(&item), item);
 
         offer
     }
@@ -141,7 +141,7 @@ module holasui::escrow {
 
         assert!(coin::value(&coin) == offer.creator_coin_amount, EWrongCoinAmount);
 
-        object_bag::add<String, Coin<SUI>>(&mut offer.object_bag, key_creator_coin(), coin);
+        object_bag::add<String, Coin<SUI>>(&mut offer.bag, key_creator_coin(), coin);
 
         offer
     }
@@ -195,7 +195,7 @@ module holasui::escrow {
 
         assert!(vector::contains(&offer.recipient_object_ids, &object::id(&item)), EWrongObject);
 
-        object_bag::add<ID, T>(&mut offer.object_bag, object::id(&item), item);
+        object_bag::add<ID, T>(&mut offer.bag, object::id(&item), item);
     }
 
     public fun update_recipient_coin<T>(
@@ -211,7 +211,7 @@ module holasui::escrow {
 
         assert!(coin::value(&coin) == offer.recipient_coin_amount, EWrongCoinAmount);
 
-        object_bag::add<String, Coin<SUI>>(&mut offer.object_bag, key_recipient_coin(), coin);
+        object_bag::add<String, Coin<SUI>>(&mut offer.bag, key_recipient_coin(), coin);
     }
 
     public fun cancel_recipient_offer<T: key + store>(
@@ -281,7 +281,7 @@ module holasui::escrow {
         let i = 0;
         while (i < vector::length(&offer.creator_object_ids)) {
             assert!(
-                object_bag::contains<ID>(&offer.object_bag, *vector::borrow(&offer.creator_object_ids, i)),
+                object_bag::contains<ID>(&offer.bag, *vector::borrow(&offer.creator_object_ids, i)),
                 EInvalidOffer
             );
             i = i + 1;
@@ -290,7 +290,7 @@ module holasui::escrow {
         if (offer.creator_coin_amount > 0) {
             assert!(
                 coin::value(
-                    object_bag::borrow<String, Coin<SUI>>(&offer.object_bag, key_creator_coin())
+                    object_bag::borrow<String, Coin<SUI>>(&offer.bag, key_creator_coin())
                 ) == offer.creator_coin_amount,
                 EInvalidOffer
             );
@@ -301,7 +301,7 @@ module holasui::escrow {
         let i = 0;
         while (i < vector::length(&offer.recipient_object_ids)) {
             assert!(
-                object_bag::contains<ID>(&offer.object_bag, *vector::borrow(&offer.recipient_object_ids, i)),
+                object_bag::contains<ID>(&offer.bag, *vector::borrow(&offer.recipient_object_ids, i)),
                 EInvalidOffer
             );
             i = i + 1;
@@ -310,7 +310,7 @@ module holasui::escrow {
         if (offer.recipient_coin_amount > 0) {
             assert!(
                 coin::value(
-                    object_bag::borrow<String, Coin<SUI>>(&offer.object_bag, key_recipient_coin())
+                    object_bag::borrow<String, Coin<SUI>>(&offer.bag, key_recipient_coin())
                 ) == offer.recipient_coin_amount,
                 EInvalidOffer
             );
@@ -320,9 +320,9 @@ module holasui::escrow {
     fun transfer_creator_offers<T: key + store>(offer: &mut EscrowOffer<T>, to: address) {
         let i = 0;
         while (i < vector::length(&offer.creator_object_ids)) {
-            if (object_bag::contains<ID>(&offer.object_bag, *vector::borrow(&offer.creator_object_ids, i))) {
+            if (object_bag::contains<ID>(&offer.bag, *vector::borrow(&offer.creator_object_ids, i))) {
                 let obj = object_bag::remove<ID, T>(
-                    &mut offer.object_bag,
+                    &mut offer.bag,
                     *vector::borrow(&offer.creator_object_ids, i)
                 );
                 public_transfer(obj, to);
@@ -330,8 +330,8 @@ module holasui::escrow {
             i = i + 1;
         };
 
-        if (object_bag::contains<String>(&offer.object_bag, key_creator_coin())) {
-            let coin = object_bag::remove<String, Coin<SUI>>(&mut offer.object_bag, key_creator_coin());
+        if (object_bag::contains<String>(&offer.bag, key_creator_coin())) {
+            let coin = object_bag::remove<String, Coin<SUI>>(&mut offer.bag, key_creator_coin());
             public_transfer(coin, to);
         };
     }
@@ -339,9 +339,9 @@ module holasui::escrow {
     fun transfer_recipient_offers<T: key + store>(offer: &mut EscrowOffer<T>, to: address) {
         let i = 0;
         while (i < vector::length(&offer.recipient_object_ids)) {
-            if (object_bag::contains<ID>(&offer.object_bag, *vector::borrow(&offer.recipient_object_ids, i))) {
+            if (object_bag::contains<ID>(&offer.bag, *vector::borrow(&offer.recipient_object_ids, i))) {
                 let obj = object_bag::remove<ID, T>(
-                    &mut offer.object_bag,
+                    &mut offer.bag,
                     *vector::borrow(&offer.recipient_object_ids, i)
                 );
                 public_transfer(obj, to);
@@ -349,8 +349,8 @@ module holasui::escrow {
             i = i + 1;
         };
 
-        if (object_bag::contains<String>(&offer.object_bag, key_recipient_coin())) {
-            let coin = object_bag::remove<String, Coin<SUI>>(&mut offer.object_bag, key_recipient_coin());
+        if (object_bag::contains<String>(&offer.bag, key_recipient_coin())) {
+            let coin = object_bag::remove<String, Coin<SUI>>(&mut offer.bag, key_recipient_coin());
             public_transfer(coin, to);
         };
     }
