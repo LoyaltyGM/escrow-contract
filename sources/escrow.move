@@ -35,12 +35,16 @@ module holasui::escrow {
         id: UID,
         fee: u64,
         balance: Balance<SUI>
+
+        // dof
+        // [id] -> EscrowOffer
     }
 
     /// An object held in escrow
     struct EscrowOffer<phantom T> has key, store {
         id: UID,
         active: bool,
+        exchanged: bool,
         bag: ObjectBag,
         //
         creator: address,
@@ -106,6 +110,7 @@ module holasui::escrow {
         EscrowOffer {
             id: object::new(ctx),
             active: false,
+            exchanged: false,
             bag: object_bag::new(ctx),
             creator: sender(ctx),
             creator_object_ids,
@@ -243,6 +248,7 @@ module holasui::escrow {
         check_recipient_offer(offer);
 
         offer.active = false;
+        offer.exchanged = true;
 
         emit(Exchanged {
             offer_id: object::id(offer)
