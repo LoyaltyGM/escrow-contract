@@ -248,12 +248,12 @@ module holasui::escrow {
         check_creator_offer(offer);
         check_recipient_offer(offer);
 
-        offer.active = false;
-        offer.exchanged = true;
-
         emit(Exchanged {
             offer_id: object::id(offer)
         });
+
+        offer.active = false;
+        offer.exchanged = true;
 
         let recipient = offer.recipient;
         transfer_creator_offers(offer, recipient);
