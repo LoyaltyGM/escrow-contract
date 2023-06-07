@@ -229,10 +229,10 @@ module holasui::escrow {
     public fun exchange<T: key + store>(
         hub: &mut EscrowHub,
         offer_id: ID,
-        coin: Coin<SUI>,
+        fee_coin: &mut Coin<SUI>,
         ctx: &mut TxContext
     ) {
-        handle_payment(hub, coin, ctx);
+        handle_payment(hub, fee_coin, ctx);
 
         let offer = dof::borrow_mut<ID, EscrowOffer<T>>(&mut hub.id, offer_id);
 
@@ -269,13 +269,12 @@ module holasui::escrow {
 
     // ======== Utility functions =========
 
-    fun handle_payment(hub: &mut EscrowHub, coin: Coin<SUI>, ctx: &mut TxContext) {
-        assert!(coin::value(&coin) >= hub.fee, EInsufficientPay);
+    fun handle_payment(hub: &mut EscrowHub, coin: &mut Coin<SUI>, ctx: &mut TxContext) {
+        assert!(coin::value(coin) >= hub.fee, EInsufficientPay);
 
-        let payment = coin::split(&mut coin, hub.fee, ctx);
+        let payment = coin::split(coin, hub.fee, ctx);
 
         coin::put(&mut hub.balance, payment);
-        pay::keep(coin, ctx);
     }
 
     fun check_creator_offer<T>(offer: &mut EscrowOffer<T>) {
