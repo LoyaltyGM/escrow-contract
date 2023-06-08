@@ -44,7 +44,6 @@ module holasui::escrow {
     struct Escrow<phantom T> has key, store {
         id: UID,
         active: bool,
-        exchanged: bool,
         bag: ObjectBag,
         //
         creator: address,
@@ -93,7 +92,6 @@ module holasui::escrow {
         Escrow {
             id: object::new(ctx),
             active: false,
-            exchanged: false,
             bag: object_bag::new(ctx),
             creator: sender(ctx),
             creator_object_ids,
@@ -214,7 +212,6 @@ module holasui::escrow {
         });
 
         escrow.active = false;
-        escrow.exchanged = true;
 
         let recipient = escrow.recipient;
         transfer_creator_objects(escrow, recipient);
