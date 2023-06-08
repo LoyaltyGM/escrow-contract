@@ -1,3 +1,8 @@
+/*
+    Escrow is a contract between two parties, where one party (the creator) deposits objects and/or coins
+    and the other party (the recipient) deposits objects and/or coins.
+    Objects must be of type T, and coins must be of type SUI.
+*/
 module holasui::escrow {
     use std::string::{utf8, String};
     use std::vector;
@@ -16,6 +21,7 @@ module holasui::escrow {
 
 
     // ======== Errors =========
+
     const EWrongOwner: u64 = 0;
     const EWrongRecipient: u64 = 1;
     const EWrongObject: u64 = 2;
@@ -24,6 +30,7 @@ module holasui::escrow {
     const EInactiveEscrow: u64 = 5;
 
     // ======== Types =========
+
     struct ESCROW has drop {}
 
     struct EscrowHub has key {
@@ -51,7 +58,7 @@ module holasui::escrow {
 
     // ======== Events =========
 
-    struct Created has copy, drop {
+    struct Shared has copy, drop {
         escrow_id: ID,
     }
 
@@ -139,7 +146,7 @@ module holasui::escrow {
 
         escrow.active = true;
 
-        emit(Created {
+        emit(Shared {
             escrow_id: object::id(&escrow)
         });
 
