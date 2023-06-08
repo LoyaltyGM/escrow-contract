@@ -111,7 +111,6 @@ module holasui::escrow {
     ): Escrow<T> {
         assert!(!escrow.active, EInactiveEscrow);
         assert!(sender(ctx) == escrow.creator, EWrongOwner);
-
         assert!(vector::contains(&escrow.creator_object_ids, &object::id(&item)), EWrongObject);
 
         object_bag::add<ID, T>(&mut escrow.bag, object::id(&item), item);
@@ -126,7 +125,6 @@ module holasui::escrow {
     ): Escrow<T> {
         assert!(!escrow.active, EInactiveEscrow);
         assert!(sender(ctx) == escrow.creator, EWrongOwner);
-
         assert!(coin::value(&coin) == escrow.creator_coin_amount, EWrongCoinAmount);
 
         object_bag::add<String, Coin<SUI>>(&mut escrow.bag, key_creator_coin(), coin);
@@ -141,14 +139,13 @@ module holasui::escrow {
     ) {
         assert!(!escrow.active, EInactiveEscrow);
         assert!(sender(ctx) == escrow.creator, EWrongOwner);
-
         check_creator_objects(&mut escrow);
-
-        escrow.active = true;
 
         emit(Shared {
             escrow_id: object::id(&escrow)
         });
+
+        escrow.active = true;
 
         dof::add<ID, Escrow<T>>(&mut hub.id, object::id(&escrow), escrow);
     }
@@ -180,7 +177,6 @@ module holasui::escrow {
 
         assert!(escrow.active, EInactiveEscrow);
         assert!(sender(ctx) == escrow.recipient, EWrongRecipient);
-
         assert!(vector::contains(&escrow.recipient_object_ids, &object::id(&item)), EWrongObject);
 
         object_bag::add<ID, T>(&mut escrow.bag, object::id(&item), item);
@@ -196,22 +192,9 @@ module holasui::escrow {
 
         assert!(escrow.active, EInactiveEscrow);
         assert!(sender(ctx) == escrow.recipient, EWrongRecipient);
-
         assert!(coin::value(&coin) == escrow.recipient_coin_amount, EWrongCoinAmount);
 
         object_bag::add<String, Coin<SUI>>(&mut escrow.bag, key_recipient_coin(), coin);
-    }
-
-    public fun cancel_recipient_escrow<T: key + store>(
-        hub: &mut EscrowHub,
-        escrow_id: ID,
-        ctx: &mut TxContext
-    ) {
-        let escrow = dof::borrow_mut<ID, Escrow<T>>(&mut hub.id, escrow_id);
-
-        assert!(sender(ctx) == escrow.recipient, EWrongRecipient);
-
-        transfer_recipient_objects(escrow, sender(ctx));
     }
 
     public fun exchange<T: key + store>(
@@ -223,7 +206,6 @@ module holasui::escrow {
 
         assert!(escrow.active, EInactiveEscrow);
         assert!(sender(ctx) == escrow.recipient, EWrongRecipient);
-
         check_creator_objects(escrow);
         check_recipient_objects(escrow);
 
@@ -239,6 +221,18 @@ module holasui::escrow {
 
         let creator = escrow.creator;
         transfer_recipient_objects(escrow, creator);
+    }
+
+    public fun cancel_recipient_escrow<T: key + store>(
+        hub: &mut EscrowHub,
+        escrow_id: ID,
+        ctx: &mut TxContext
+    ) {
+        let escrow = dof::borrow_mut<ID, Escrow<T>>(&mut hub.id, escrow_id);
+
+        assert!(sender(ctx) == escrow.recipient, EWrongRecipient);
+
+        transfer_recipient_objects(escrow, sender(ctx));
     }
 
     // ======== Utility functions =========
