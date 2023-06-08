@@ -4,6 +4,7 @@
     Objects must be of type T, and coins must be of type SUI.
 */
 module holasui::escrow {
+    use std::option::{Self, Option};
     use std::vector;
 
     use sui::coin::Coin;
@@ -16,6 +17,9 @@ module holasui::escrow {
     use sui::tx_context::{TxContext, sender};
 
     // ======== Constants =========
+    const STATUS_CANCELED: u8 = 0;
+    const STATUS_ACTIVE: u8 = 1;
+    const STATUS_EXCHANGED: u8 = 2;
 
 
     // ======== Errors =========
@@ -41,11 +45,11 @@ module holasui::escrow {
     /// An object held in escrow
     struct Escrow<T: key + store> has key, store {
         id: UID,
-        active: bool,
+        status: u8,
         //
         creator: address,
         creator_objects: vector<T>,
-        creator_coin: Coin<SUI>,
+        creator_coin: Option<Coin<SUI>>,
         //
         recipient: address,
         recipient_object_ids: vector<ID>,
@@ -55,6 +59,10 @@ module holasui::escrow {
     // ======== Events =========
 
     struct Created has copy, drop {
+        escrow_id: ID,
+    }
+
+    struct Canceled has copy, drop {
         escrow_id: ID,
     }
 
@@ -89,10 +97,10 @@ module holasui::escrow {
 
         let escrow = Escrow<T> {
             id: object::new(ctx),
-            active: true,
+            status: STATUS_ACTIVE,
             creator: sender(ctx),
             creator_objects,
-            creator_coin,
+            creator_coin: option::some(creator_coin),
             recipient,
             recipient_object_ids,
             recipient_coin_amount,
@@ -103,6 +111,28 @@ module holasui::escrow {
         });
 
         dof::add<ID, Escrow<T>>(&mut hub.id, object::id(&escrow), escrow);
+    }
+
+    public fun cancel_creator_escrow<T: key + store>(
+        hub: &mut EscrowHub,
+        escrow_id: ID,
+        ctx: &mut TxContext
+    ) {
+        let escrow = dof::borrow_mut<ID, Escrow<T>>(&mut hub.id, escrow_id);
+
+        assert!(escrow.status == STATUS_ACTIVE, EInactiveEscrow);
+        assert!(sender(ctx) == escrow.creator, EWrongOwner);
+
+        emit(Canceled {
+            escrow_id: object::id(escrow)
+        });
+
+        escrow.status = STATUS_CANCELED;
+        while (!vector::is_empty(&escrow.creator_objects)) {
+            let item = vector::pop_back(&mut escrow.creator_objects);
+            public_transfer(item, sender(ctx));
+        };
+        public_transfer(option::extract(&mut escrow.creator_coin), sender(ctx));
     }
 
     // public fun update_creator_objects<T: key + store>(
@@ -150,21 +180,6 @@ module holasui::escrow {
     //
     //     dof::add<ID, Escrow<T>>(&mut hub.id, object::id(&escrow), escrow);
     // }
-
-    public fun cancel_creator_escrow<T: key + store>(
-        hub: &mut EscrowHub,
-        escrow_id: ID,
-        ctx: &mut TxContext
-    ) {
-        let escrow = dof::borrow_mut<ID, Escrow<T>>(&mut hub.id, escrow_id);
-
-        assert!(escrow.active, EInactiveEscrow);
-        assert!(sender(ctx) == escrow.creator, EWrongOwner);
-
-        // transfer_creator_objects(escrow, sender(ctx));
-
-        escrow.active = false;
-    }
 
     // ======== Recipient of Escrow functions ========
 
