@@ -1,7 +1,7 @@
 /*
-    Escrow is a contract between two parties, where one party (the creator) deposits objects and/or coins
-    and the other party (the recipient) deposits objects and/or coins.
-    Objects must be of type T, and coins must be of type SUI.
+    Escrow is a contract between two parties, where one party (the creator) deposits items and/or SUI
+    and the other party (the recipient) deposits items and/or SUI.
+    Items must be of type T
 */
 module holasui::escrow {
     use std::option::{Self, Option};
@@ -17,6 +17,7 @@ module holasui::escrow {
     use sui::tx_context::{TxContext, sender};
 
     // ======== Constants =========
+
     const STATUS_CANCELED: u8 = 0;
     const STATUS_ACTIVE: u8 = 1;
     const STATUS_EXCHANGED: u8 = 2;
@@ -26,7 +27,7 @@ module holasui::escrow {
 
     const EWrongOwner: u64 = 0;
     const EWrongRecipient: u64 = 1;
-    const EWrongObject: u64 = 2;
+    const EWrongItem: u64 = 2;
     const EWrongCoinAmount: u64 = 3;
     const EInvalidEscrow: u64 = 4;
     const EInactiveEscrow: u64 = 5;
@@ -42,7 +43,7 @@ module holasui::escrow {
         // [id] -> Escrow
     }
 
-    /// An object held in escrow
+    /// Struct that represents an Escrow
     struct Escrow<T: key + store> has key, store {
         id: UID,
         status: u8,
@@ -138,7 +139,7 @@ module holasui::escrow {
     public fun exchange<T: key + store>(
         hub: &mut EscrowHub,
         escrow_id: ID,
-        recipient_objects: vector<T>,
+        recipient_items: vector<T>,
         recipient_coin: Coin<SUI>,
         ctx: &mut TxContext
     ) {
@@ -147,7 +148,7 @@ module holasui::escrow {
         assert!(escrow.status == STATUS_ACTIVE, EInactiveEscrow);
         assert!(sender(ctx) == escrow.recipient, EWrongRecipient);
         assert!(coin::value(&recipient_coin) == escrow.recipient_coin_amount, EWrongCoinAmount);
-        check_items_ids(&recipient_objects, &escrow.recipient_items_ids);
+        check_items_ids(&recipient_items, &escrow.recipient_items_ids);
 
         emit(Exchanged {
             escrow_id: object::id(escrow)
@@ -155,12 +156,12 @@ module holasui::escrow {
 
         escrow.status = STATUS_EXCHANGED;
 
-        // transfer creator objects to recipient
+        // transfer creator itemss to recipient
         transfer_items(option::extract(&mut escrow.creator_items), sender(ctx));
         public_transfer(option::extract(&mut escrow.creator_coin), sender(ctx));
 
-        // transfer recipient objects to creator
-        transfer_items(recipient_objects, escrow.creator);
+        // transfer recipient items to creator
+        transfer_items(recipient_items, escrow.creator);
         public_transfer(recipient_coin, escrow.creator);
     }
 
@@ -181,13 +182,13 @@ module holasui::escrow {
         items: &vector<T>,
         ids: &vector<ID>
     ) {
-        assert!(vector::length(items) == vector::length(ids), EWrongObject);
+        assert!(vector::length(items) == vector::length(ids), EWrongItem);
 
         let i = 0;
         while (i < vector::length(ids)) {
             assert!(
                 vector::contains(ids,&object::id(vector::borrow(items, i))),
-                EWrongObject
+                EWrongItem
             );
             i = i + 1;
         };
