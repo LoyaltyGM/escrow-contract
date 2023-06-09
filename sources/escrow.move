@@ -15,7 +15,7 @@ module holasui::escrow {
     use sui::sui::SUI;
     use sui::transfer::{share_object, public_transfer};
     use sui::tx_context::{TxContext, sender};
-    use sui::vec_set::VecSet;
+    use sui::vec_set::{Self, VecSet};
 
     // ======== Constants =========
 
@@ -54,7 +54,7 @@ module holasui::escrow {
         creator_coin: Option<Coin<SUI>>,
         //
         recipient: address,
-        recipient_items_ids: vector<ID>,
+        recipient_items_ids: VecSet<ID>,
         recipient_coin_amount: u64,
     }
 
@@ -111,7 +111,7 @@ module holasui::escrow {
             creator_items: option::some(creator_items),
             creator_coin: option::some(creator_coin),
             recipient,
-            recipient_items_ids,
+            recipient_items_ids: vector_to_set(recipient_items_ids),
             recipient_coin_amount,
         };
 
@@ -200,17 +200,35 @@ module holasui::escrow {
 
     fun check_items_ids<T: key + store>(
         items: &vector<T>,
-        ids: &vector<ID>
+        ids: &VecSet<ID>
     ) {
-        assert!(vector::length(items) == vector::length(ids), EWrongItem);
+        assert!(vector::length(items) == vec_set::size(ids), EWrongItem);
 
         let i = 0;
-        while (i < vector::length(ids)) {
+        while (i < vector::length(items)) {
             assert!(
-                vector::contains(ids,&object::id(vector::borrow(items, i))),
+                vec_set::contains(ids,&object::id(vector::borrow(items, i))),
                 EWrongItem
             );
             i = i + 1;
         };
+    }
+
+    /*
+        Converts a vector of items into a set of items.
+        Aborts if there are duplicates.
+    */
+    fun vector_to_set<T: copy + drop>(
+        items: vector<T>
+    ): VecSet<T> {
+        let set = vec_set::empty<T>();
+
+        while (!vector::is_empty(&items)) {
+            let item = vector::pop_back(&mut items);
+            vec_set::insert(&mut set, item);
+        };
+        vector::destroy_empty(items);
+
+        set
     }
 }
