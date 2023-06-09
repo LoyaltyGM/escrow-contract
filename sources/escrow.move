@@ -15,6 +15,7 @@ module holasui::escrow {
     use sui::sui::SUI;
     use sui::transfer::{share_object, public_transfer};
     use sui::tx_context::{TxContext, sender};
+    use sui::vec_set::VecSet;
 
     // ======== Constants =========
 
@@ -91,7 +92,7 @@ module holasui::escrow {
         The creator of the Escrow can cancel it at any time.
         The recipient of the Escrow can exchange it at any time.
     */
-    public fun create<T: key + store>(
+    entry fun create<T: key + store>(
         hub: &mut EscrowHub,
         creator_items: vector<T>,
         creator_coin: Coin<SUI>,
@@ -126,7 +127,7 @@ module holasui::escrow {
         The sender of the transaction must be the creator of the Escrow.
         The Escrow must be active.
     */
-    public fun cancel_creator_escrow<T: key + store>(
+    entry fun cancel_creator_escrow<T: key + store>(
         hub: &mut EscrowHub,
         escrow_id: ID,
         ctx: &mut TxContext
@@ -155,7 +156,7 @@ module holasui::escrow {
         The recipient of the Escrow must have the given items.
         The recipient of the Escrow must have the given coin.
     */
-    public fun exchange<T: key + store>(
+    entry fun exchange<T: key + store>(
         hub: &mut EscrowHub,
         escrow_id: ID,
         recipient_items: vector<T>,
