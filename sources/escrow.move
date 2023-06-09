@@ -25,7 +25,7 @@ module holasui::escrow {
 
     // ======== Errors =========
 
-    const EWrongOwner: u64 = 0;
+    const EWrongCreator: u64 = 0;
     const EWrongRecipient: u64 = 1;
     const EWrongItem: u64 = 2;
     const EWrongCoinAmount: u64 = 3;
@@ -134,7 +134,7 @@ module holasui::escrow {
         let escrow = dof::borrow_mut<ID, Escrow<T>>(&mut hub.id, escrow_id);
 
         assert!(escrow.status == STATUS_ACTIVE, EInactiveEscrow);
-        assert!(sender(ctx) == escrow.creator, EWrongOwner);
+        assert!(sender(ctx) == escrow.creator, EWrongCreator);
 
         emit(Canceled {
             escrow_id: object::id(escrow)
