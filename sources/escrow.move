@@ -84,6 +84,13 @@ module holasui::escrow {
 
     // ======== Creator of Escrow functions ========
 
+    /*
+        Creates an Escrow with the given items and coin.
+        The creator of the Escrow is the sender of the transaction.
+        The recipient of the Escrow is the given recipient.
+        The creator of the Escrow can cancel it at any time.
+        The recipient of the Escrow can exchange it at any time.
+    */
     public fun create<T: key + store>(
         hub: &mut EscrowHub,
         creator_items: vector<T>,
@@ -114,6 +121,11 @@ module holasui::escrow {
         dof::add<ID, Escrow<T>>(&mut hub.id, object::id(&escrow), escrow);
     }
 
+    /*
+        Cancels an Escrow.
+        The sender of the transaction must be the creator of the Escrow.
+        The Escrow must be active.
+    */
     public fun cancel_creator_escrow<T: key + store>(
         hub: &mut EscrowHub,
         escrow_id: ID,
@@ -136,6 +148,13 @@ module holasui::escrow {
 
     // ======== Recipient of Escrow functions ========
 
+    /*
+        Exchanges an Escrow.
+        The sender of the transaction must be the recipient of the Escrow.
+        The Escrow must be active.
+        The recipient of the Escrow must have the given items.
+        The recipient of the Escrow must have the given coin.
+    */
     public fun exchange<T: key + store>(
         hub: &mut EscrowHub,
         escrow_id: ID,
