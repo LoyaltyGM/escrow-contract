@@ -60,16 +60,16 @@ module holasui::escrow {
 
     // ======== Events =========
 
-    struct Created has copy, drop {
-        escrow_id: ID,
+    struct EscrowCreated has copy, drop {
+        id: ID,
     }
 
-    struct Canceled has copy, drop {
-        escrow_id: ID,
+    struct EscrowCanceled has copy, drop {
+        id: ID,
     }
 
-    struct Exchanged has copy, drop {
-        escrow_id: ID,
+    struct EscrowExchanged has copy, drop {
+        id: ID,
     }
 
     // ======== Functions =========
@@ -115,8 +115,8 @@ module holasui::escrow {
             recipient_coin_amount,
         };
 
-        emit(Created {
-            escrow_id: object::id(&escrow)
+        emit(EscrowCreated {
+            id: object::id(&escrow)
         });
 
         dof::add<ID, Escrow<T>>(&mut hub.id, object::id(&escrow), escrow);
@@ -137,8 +137,8 @@ module holasui::escrow {
         assert!(escrow.status == STATUS_ACTIVE, EInactiveEscrow);
         assert!(sender(ctx) == escrow.creator, EWrongCreator);
 
-        emit(Canceled {
-            escrow_id: object::id(escrow)
+        emit(EscrowCanceled {
+            id: object::id(escrow)
         });
 
         escrow.status = STATUS_CANCELED;
@@ -170,8 +170,8 @@ module holasui::escrow {
         assert!(coin::value(&recipient_coin) == escrow.recipient_coin_amount, EWrongCoinAmount);
         check_items_ids(&recipient_items, &escrow.recipient_items_ids);
 
-        emit(Exchanged {
-            escrow_id: object::id(escrow)
+        emit(EscrowExchanged {
+            id: object::id(escrow)
         });
 
         escrow.status = STATUS_EXCHANGED;
