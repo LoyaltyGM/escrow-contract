@@ -48,10 +48,12 @@ module holasui::escrow {
     struct Escrow<T: key + store> has key, store {
         id: UID,
         status: u8,
+        escrowed_items: Option<vector<T>>,
+        escrowed_coin: Option<Coin<SUI>>,
         //
         creator: address,
-        creator_items: Option<vector<T>>,
-        creator_coin: Option<Coin<SUI>>,
+        creator_items_ids: VecSet<ID>,
+        creator_coin_amount: u64,
         //
         recipient: address,
         recipient_items_ids: VecSet<ID>,
@@ -94,24 +96,31 @@ module holasui::escrow {
     */
     entry fun create<T: key + store>(
         hub: &mut EscrowHub,
-        creator_items: vector<T>,
-        creator_coin: Coin<SUI>,
+        escrowed_items: vector<T>,
+        escrowed_coin: Coin<SUI>,
         recipient: address,
         recipient_items_ids: vector<ID>,
         recipient_coin_amount: u64,
         ctx: &mut TxContext
     ) {
         assert!(recipient != sender(ctx), EWrongRecipient);
-        assert!(vector::length(&creator_items) > 0 || vector::length(&recipient_items_ids) > 0, EInvalidEscrow);
+        assert!(vector::length(&escrowed_items) > 0 || vector::length(&recipient_items_ids) > 0, EInvalidEscrow);
+
+        let creator_items_ids = get_items_ids(&escrowed_items);
+        let creator_coin_amount = coin::value(&escrowed_coin);
+
+        let recipient_items_ids = vector_to_set(recipient_items_ids);
 
         let escrow = Escrow<T> {
             id: object::new(ctx),
             status: STATUS_ACTIVE,
+            escrowed_items: option::some(escrowed_items),
+            escrowed_coin: option::some(escrowed_coin),
             creator: sender(ctx),
-            creator_items: option::some(creator_items),
-            creator_coin: option::some(creator_coin),
+            creator_items_ids,
+            creator_coin_amount,
             recipient,
-            recipient_items_ids: vector_to_set(recipient_items_ids),
+            recipient_items_ids,
             recipient_coin_amount,
         };
 
@@ -142,8 +151,8 @@ module holasui::escrow {
         });
 
         escrow.status = STATUS_CANCELED;
-        transfer_items(option::extract(&mut escrow.creator_items), sender(ctx));
-        public_transfer(option::extract(&mut escrow.creator_coin), sender(ctx));
+        transfer_items(option::extract(&mut escrow.escrowed_items), sender(ctx));
+        public_transfer(option::extract(&mut escrow.escrowed_coin), sender(ctx));
     }
 
 
@@ -177,8 +186,8 @@ module holasui::escrow {
         escrow.status = STATUS_EXCHANGED;
 
         // transfer creator itemss to recipient
-        transfer_items(option::extract(&mut escrow.creator_items), sender(ctx));
-        public_transfer(option::extract(&mut escrow.creator_coin), sender(ctx));
+        transfer_items(option::extract(&mut escrow.escrowed_items), sender(ctx));
+        public_transfer(option::extract(&mut escrow.escrowed_coin), sender(ctx));
 
         // transfer recipient items to creator
         transfer_items(recipient_items, escrow.creator);
@@ -212,6 +221,21 @@ module holasui::escrow {
             );
             i = i + 1;
         };
+    }
+
+    fun get_items_ids<T: key + store>(
+        items: &vector<T>,
+    ): VecSet<ID> {
+        let items_ids = vec_set::empty<ID>();
+
+        let i = 0;
+        while (i < vector::length(items)) {
+            let item = vector::borrow(items, i);
+            vec_set::insert(&mut items_ids, object::id(item));
+            i = i + 1;
+        };
+
+        items_ids
     }
 
     /*
