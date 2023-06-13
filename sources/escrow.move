@@ -20,6 +20,7 @@ module holasui::escrow {
     use sui::vec_set::{Self, VecSet};
 
     // ======== Constants =========
+    const VERSION: u64 = 0;
 
     const STATUS_CANCELED: u8 = 0;
     const STATUS_ACTIVE: u8 = 1;
@@ -36,6 +37,8 @@ module holasui::escrow {
     const EInactiveEscrow: u64 = 5;
     const EInsufficientPay: u64 = 6;
     const EZeroBalance: u64 = 7;
+    const EWrongVersion: u64 = 8;
+    const ENotUpgrade: u64 = 9;
 
     // ======== Types =========
 
@@ -47,6 +50,7 @@ module holasui::escrow {
 
     struct EscrowHub has key {
         id: UID,
+        version: u64,
         fee: u64,
         balance: Balance<SUI>
 
@@ -95,6 +99,7 @@ module holasui::escrow {
 
         share_object(EscrowHub {
             id: object::new(ctx),
+            version: VERSION,
             fee: 400000000,
             balance: balance::zero()
         })
@@ -111,6 +116,12 @@ module holasui::escrow {
         assert!(amount > 0, EZeroBalance);
 
         pay::keep(coin::take(&mut hub.balance, amount, ctx), ctx);
+    }
+
+    entry fun migrate_hub(_: &AdminCap, hub: &mut EscrowHub) {
+        assert!(hub.version < VERSION, ENotUpgrade);
+
+        hub.version = VERSION;
     }
 
     // ======== Creator of Escrow functions ========
@@ -131,6 +142,8 @@ module holasui::escrow {
         recipient_coin_amount: u64,
         ctx: &mut TxContext
     ) {
+        check_hub_version(hub);
+
         assert!(recipient != sender(ctx), EWrongRecipient);
         assert!(vector::length(&escrowed_items) > 0 || vector::length(&recipient_items_ids) > 0, EInvalidEscrow);
 
@@ -169,6 +182,8 @@ module holasui::escrow {
         escrow_id: ID,
         ctx: &mut TxContext
     ) {
+        check_hub_version(hub);
+
         let escrow = dof::borrow_mut<ID, Escrow<T>>(&mut hub.id, escrow_id);
 
         assert!(escrow.status == STATUS_ACTIVE, EInactiveEscrow);
@@ -201,6 +216,8 @@ module holasui::escrow {
         recipient_coin: Coin<SUI>,
         ctx: &mut TxContext
     ) {
+        check_hub_version(hub);
+
         assert!(coin::value(&fee_coin) == hub.fee, EInsufficientPay);
         coin::put(&mut hub.balance, fee_coin);
 
@@ -227,6 +244,10 @@ module holasui::escrow {
     }
 
     // ======== Utility functions =========
+
+    fun check_hub_version(hub: &EscrowHub) {
+        assert!(hub.version == VERSION, EWrongVersion);
+    }
 
     fun transfer_items<T: key + store>(
         items: vector<T>,
