@@ -7,11 +7,13 @@ module holasui::escrow {
     use std::option::{Self, Option};
     use std::vector;
 
+    use sui::balance::{Self, Balance};
     use sui::coin::{Self, Coin};
     use sui::dynamic_object_field as dof;
     use sui::event::emit;
     use sui::object::{Self, ID, UID};
     use sui::package;
+    use sui::pay;
     use sui::sui::SUI;
     use sui::transfer::{share_object, public_transfer};
     use sui::tx_context::{TxContext, sender};
@@ -32,13 +34,21 @@ module holasui::escrow {
     const EWrongCoinAmount: u64 = 3;
     const EInvalidEscrow: u64 = 4;
     const EInactiveEscrow: u64 = 5;
+    const EInsufficientPay: u64 = 6;
+    const EZeroBalance: u64 = 7;
 
     // ======== Types =========
 
     struct ESCROW has drop {}
 
+    struct AdminCap has key, store {
+        id: UID,
+    }
+
     struct EscrowHub has key {
         id: UID,
+        fee: u64,
+        balance: Balance<SUI>
 
         // dof
         // [id] -> Escrow
@@ -77,12 +87,30 @@ module holasui::escrow {
     // ======== Functions =========
 
     fun init(otw: ESCROW, ctx: &mut TxContext) {
-        let publisher = package::claim(otw, ctx);
+        public_transfer(package::claim(otw, ctx), sender(ctx));
 
-        public_transfer(publisher, sender(ctx));
+        public_transfer(AdminCap {
+            id: object::new(ctx)
+        }, sender(ctx));
+
         share_object(EscrowHub {
             id: object::new(ctx),
+            fee: 400000000,
+            balance: balance::zero()
         })
+    }
+
+    // ======== Admin functions ========
+
+    entry fun update_fee(_: &AdminCap, hub: &mut EscrowHub, fee: u64) {
+        hub.fee = fee;
+    }
+
+    entry fun withdraw(_: &AdminCap, hub: &mut EscrowHub, ctx: &mut TxContext) {
+        let amount = balance::value(&hub.balance);
+        assert!(amount > 0, EZeroBalance);
+
+        pay::keep(coin::take(&mut hub.balance, amount, ctx), ctx);
     }
 
     // ======== Creator of Escrow functions ========
@@ -167,11 +195,15 @@ module holasui::escrow {
     */
     entry fun exchange<T: key + store>(
         hub: &mut EscrowHub,
+        fee_coin: Coin<SUI>,
         escrow_id: ID,
         recipient_items: vector<T>,
         recipient_coin: Coin<SUI>,
         ctx: &mut TxContext
     ) {
+        assert!(coin::value(&fee_coin) == hub.fee, EInsufficientPay);
+        coin::put(&mut hub.balance, fee_coin);
+
         let escrow = dof::borrow_mut<ID, Escrow<T>>(&mut hub.id, escrow_id);
 
         assert!(escrow.status == STATUS_ACTIVE, EInactiveEscrow);
