@@ -4,7 +4,7 @@
     Items must be of type T
 */
 module holasui::escrow {
-    use std::option::{Self, Option};
+    use std::string::utf8;
     use std::vector;
 
     use sui::balance::{Self, Balance};
@@ -59,12 +59,12 @@ module holasui::escrow {
     }
 
     /// Struct that represents an Escrow
-    struct Escrow<T: key + store> has key, store {
+    struct Escrow<phantom T: key + store> has key, store {
         id: UID,
         status: u8,
         // todo: add to dof
-        escrowed_items: Option<vector<T>>,
-        escrowed_coin: Option<Coin<SUI>>,
+        // escrowed_items: Option<vector<T>>,
+        // escrowed_coin: Option<Coin<SUI>>,
         //
         creator: address,
         creator_items_ids: VecSet<ID>,
@@ -136,8 +136,8 @@ module holasui::escrow {
     */
     entry fun create<T: key + store>(
         hub: &mut EscrowHub,
-        escrowed_items: vector<T>,
-        escrowed_coin: Coin<SUI>,
+        creator_items: vector<T>,
+        creator_coin: Coin<SUI>,
         recipient: address,
         recipient_items_ids: vector<ID>,
         recipient_coin_amount: u64,
@@ -146,18 +146,18 @@ module holasui::escrow {
         check_hub_version(hub);
 
         assert!(recipient != sender(ctx), EWrongRecipient);
-        assert!(vector::length(&escrowed_items) > 0 || vector::length(&recipient_items_ids) > 0, EInvalidEscrow);
+        assert!(vector::length(&creator_items) > 0 || vector::length(&recipient_items_ids) > 0, EInvalidEscrow);
 
-        let creator_items_ids = get_items_ids(&escrowed_items);
-        let creator_coin_amount = coin::value(&escrowed_coin);
+        let id = object::new(ctx);
+
+        let creator_items_ids = add_items_to_dof(&mut id, creator_items);
+        let creator_coin_amount = add_coin_to_dof(&mut id, creator_coin);
 
         let recipient_items_ids = vector_to_set(recipient_items_ids);
 
         let escrow = Escrow<T> {
-            id: object::new(ctx),
+            id,
             status: STATUS_ACTIVE,
-            escrowed_items: option::some(escrowed_items),
-            escrowed_coin: option::some(escrowed_coin),
             creator: sender(ctx),
             creator_items_ids,
             creator_coin_amount,
@@ -178,26 +178,26 @@ module holasui::escrow {
         The sender of the transaction must be the creator of the Escrow.
         The Escrow must be active.
     */
-    entry fun cancel_creator_escrow<T: key + store>(
-        hub: &mut EscrowHub,
-        escrow_id: ID,
-        ctx: &mut TxContext
-    ) {
-        check_hub_version(hub);
-
-        let escrow = dof::borrow_mut<ID, Escrow<T>>(&mut hub.id, escrow_id);
-
-        assert!(escrow.status == STATUS_ACTIVE, EInactiveEscrow);
-        assert!(sender(ctx) == escrow.creator, EWrongCreator);
-
-        emit(EscrowCanceled {
-            id: object::id(escrow)
-        });
-
-        escrow.status = STATUS_CANCELED;
-        transfer_items(option::extract(&mut escrow.escrowed_items), sender(ctx));
-        public_transfer(option::extract(&mut escrow.escrowed_coin), sender(ctx));
-    }
+    // entry fun cancel_creator_escrow<T: key + store>(
+    //     hub: &mut EscrowHub,
+    //     escrow_id: ID,
+    //     ctx: &mut TxContext
+    // ) {
+    //     check_hub_version(hub);
+    //
+    //     let escrow = dof::borrow_mut<ID, Escrow<T>>(&mut hub.id, escrow_id);
+    //
+    //     assert!(escrow.status == STATUS_ACTIVE, EInactiveEscrow);
+    //     assert!(sender(ctx) == escrow.creator, EWrongCreator);
+    //
+    //     emit(EscrowCanceled {
+    //         id: object::id(escrow)
+    //     });
+    //
+    //     escrow.status = STATUS_CANCELED;
+    //     transfer_items(option::extract(&mut escrow.escrowed_items), sender(ctx));
+    //     public_transfer(option::extract(&mut escrow.escrowed_coin), sender(ctx));
+    // }
 
 
     // ======== Recipient of Escrow functions ========
@@ -209,45 +209,80 @@ module holasui::escrow {
         The recipient of the Escrow must have the given items.
         The recipient of the Escrow must have the given coin.
     */
-    entry fun exchange<T: key + store>(
-        hub: &mut EscrowHub,
-        fee_coin: Coin<SUI>,
-        escrow_id: ID,
-        recipient_items: vector<T>,
-        recipient_coin: Coin<SUI>,
-        ctx: &mut TxContext
-    ) {
-        check_hub_version(hub);
-
-        assert!(coin::value(&fee_coin) == hub.fee, EInsufficientPay);
-        coin::put(&mut hub.balance, fee_coin);
-
-        let escrow = dof::borrow_mut<ID, Escrow<T>>(&mut hub.id, escrow_id);
-
-        assert!(escrow.status == STATUS_ACTIVE, EInactiveEscrow);
-        assert!(sender(ctx) == escrow.recipient, EWrongRecipient);
-        assert!(coin::value(&recipient_coin) == escrow.recipient_coin_amount, EWrongCoinAmount);
-        check_items_ids(&recipient_items, &escrow.recipient_items_ids);
-
-        emit(EscrowExchanged {
-            id: object::id(escrow)
-        });
-
-        escrow.status = STATUS_EXCHANGED;
-
-        // transfer creator itemss to recipient
-        transfer_items(option::extract(&mut escrow.escrowed_items), sender(ctx));
-        public_transfer(option::extract(&mut escrow.escrowed_coin), sender(ctx));
-
-        // transfer recipient items to creator
-        transfer_items(recipient_items, escrow.creator);
-        public_transfer(recipient_coin, escrow.creator);
-    }
+    // entry fun exchange<T: key + store>(
+    //     hub: &mut EscrowHub,
+    //     fee_coin: Coin<SUI>,
+    //     escrow_id: ID,
+    //     recipient_items: vector<T>,
+    //     recipient_coin: Coin<SUI>,
+    //     ctx: &mut TxContext
+    // ) {
+    //     check_hub_version(hub);
+    //
+    //     assert!(coin::value(&fee_coin) == hub.fee, EInsufficientPay);
+    //     coin::put(&mut hub.balance, fee_coin);
+    //
+    //     let escrow = dof::borrow_mut<ID, Escrow<T>>(&mut hub.id, escrow_id);
+    //
+    //     assert!(escrow.status == STATUS_ACTIVE, EInactiveEscrow);
+    //     assert!(sender(ctx) == escrow.recipient, EWrongRecipient);
+    //     assert!(coin::value(&recipient_coin) == escrow.recipient_coin_amount, EWrongCoinAmount);
+    //     check_items_ids(&recipient_items, &escrow.recipient_items_ids);
+    //
+    //     emit(EscrowExchanged {
+    //         id: object::id(escrow)
+    //     });
+    //
+    //     escrow.status = STATUS_EXCHANGED;
+    //
+    //     // transfer creator itemss to recipient
+    //     transfer_items(option::extract(&mut escrow.escrowed_items), sender(ctx));
+    //     public_transfer(option::extract(&mut escrow.escrowed_coin), sender(ctx));
+    //
+    //     // transfer recipient items to creator
+    //     transfer_items(recipient_items, escrow.creator);
+    //     public_transfer(recipient_coin, escrow.creator);
+    // }
 
     // ======== Utility functions =========
 
     fun check_hub_version(hub: &EscrowHub) {
         assert!(hub.version == VERSION, EWrongVersion);
+    }
+
+    /*
+        Adds the given items to dynamic fields of given UID.
+        Returns the IDs of the added items.
+    */
+    fun add_items_to_dof<T: key + store>(
+        uid: &mut UID,
+        items: vector<T>
+    ): VecSet<ID> {
+        let items_ids = vec_set::empty<ID>();
+
+        while (!vector::is_empty(&items)) {
+            let item = vector::pop_back(&mut items);
+            let item_id = object::id(&item);
+
+            dof::add(uid, item_id, item);
+            vec_set::insert(&mut items_ids, item_id);
+        };
+        vector::destroy_empty(items);
+
+        items_ids
+    }
+
+    /*
+        Adds the given coin to dynamic fields of given UID.
+        Returns the value of the added coin.
+    */
+    fun add_coin_to_dof(
+        uid: &mut UID,
+        coin: Coin<SUI>
+    ): u64 {
+        let value = coin::value(&coin);
+        dof::add(uid, utf8(b"escrowed_coin"), coin);
+        value
     }
 
     fun transfer_items<T: key + store>(
