@@ -62,6 +62,7 @@ module holasui::escrow {
     struct Escrow<T: key + store> has key, store {
         id: UID,
         status: u8,
+        // todo: add to dof
         escrowed_items: Option<vector<T>>,
         escrowed_coin: Option<Coin<SUI>>,
         //
