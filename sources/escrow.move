@@ -4,7 +4,7 @@
     Items must be of type T
 */
 module holasui::escrow {
-    use std::string::utf8;
+    use std::string::{utf8, String};
     use std::vector;
 
     use sui::balance::{Self, Balance};
@@ -17,7 +17,7 @@ module holasui::escrow {
     use sui::sui::SUI;
     use sui::transfer::{share_object, public_transfer};
     use sui::tx_context::{TxContext, sender};
-    use sui::vec_set::{Self, VecSet};
+    use sui::vec_set;
 
     // ======== Constants =========
     const VERSION: u64 = 0;
@@ -67,11 +67,11 @@ module holasui::escrow {
         // escrowed_coin: Option<Coin<SUI>>,
         //
         creator: address,
-        creator_items_ids: VecSet<ID>,
+        creator_items_ids: vector<ID>,
         creator_coin_amount: u64,
         //
         recipient: address,
-        recipient_items_ids: VecSet<ID>,
+        recipient_items_ids: vector<ID>,
         recipient_coin_amount: u64,
     }
 
@@ -153,7 +153,7 @@ module holasui::escrow {
         let creator_items_ids = add_items_to_dof(&mut id, creator_items);
         let creator_coin_amount = add_coin_to_dof(&mut id, creator_coin);
 
-        let recipient_items_ids = vector_to_set(recipient_items_ids);
+        check_vector_for_duplicates(&recipient_items_ids);
 
         let escrow = Escrow<T> {
             id,
@@ -178,26 +178,26 @@ module holasui::escrow {
         The sender of the transaction must be the creator of the Escrow.
         The Escrow must be active.
     */
-    // entry fun cancel_creator_escrow<T: key + store>(
-    //     hub: &mut EscrowHub,
-    //     escrow_id: ID,
-    //     ctx: &mut TxContext
-    // ) {
-    //     check_hub_version(hub);
-    //
-    //     let escrow = dof::borrow_mut<ID, Escrow<T>>(&mut hub.id, escrow_id);
-    //
-    //     assert!(escrow.status == STATUS_ACTIVE, EInactiveEscrow);
-    //     assert!(sender(ctx) == escrow.creator, EWrongCreator);
-    //
-    //     emit(EscrowCanceled {
-    //         id: object::id(escrow)
-    //     });
-    //
-    //     escrow.status = STATUS_CANCELED;
-    //     transfer_items(option::extract(&mut escrow.escrowed_items), sender(ctx));
-    //     public_transfer(option::extract(&mut escrow.escrowed_coin), sender(ctx));
-    // }
+    entry fun cancel_creator_escrow<T: key + store>(
+        hub: &mut EscrowHub,
+        escrow_id: ID,
+        ctx: &mut TxContext
+    ) {
+        check_hub_version(hub);
+
+        let escrow = dof::borrow_mut<ID, Escrow<T>>(&mut hub.id, escrow_id);
+
+        assert!(escrow.status == STATUS_ACTIVE, EInactiveEscrow);
+        assert!(sender(ctx) == escrow.creator, EWrongCreator);
+
+        emit(EscrowCanceled {
+            id: object::id(escrow)
+        });
+
+        escrow.status = STATUS_CANCELED;
+        transfer_items_from_dof<T>(&mut escrow.id, *&escrow.creator_items_ids, sender(ctx));
+        transfer_coin_from_dof(&mut escrow.id,  sender(ctx));
+    }
 
 
     // ======== Recipient of Escrow functions ========
@@ -257,19 +257,36 @@ module holasui::escrow {
     fun add_items_to_dof<T: key + store>(
         uid: &mut UID,
         items: vector<T>
-    ): VecSet<ID> {
-        let items_ids = vec_set::empty<ID>();
+    ): vector<ID> {
+        let items_ids = vector::empty<ID>();
 
         while (!vector::is_empty(&items)) {
             let item = vector::pop_back(&mut items);
             let item_id = object::id(&item);
 
             dof::add(uid, item_id, item);
-            vec_set::insert(&mut items_ids, item_id);
+            vector::push_back(&mut items_ids, item_id);
         };
         vector::destroy_empty(items);
 
         items_ids
+    }
+
+    /*
+        Removes the given items from dynamic fields of given UID.
+        Transfers the removed items to the given address.
+    */
+    fun transfer_items_from_dof<T: key + store>(
+        uid: &mut UID,
+        items_ids: vector<ID>,
+        to: address
+    ) {
+        while (!vector::is_empty(&items_ids)) {
+            let item_id = vector::pop_back(&mut items_ids);
+            let item = dof::remove<ID, T>(uid, item_id);
+            public_transfer(item, to);
+        };
+        vector::destroy_empty(items_ids);
     }
 
     /*
@@ -285,63 +302,73 @@ module holasui::escrow {
         value
     }
 
-    fun transfer_items<T: key + store>(
-        items: vector<T>,
+    /*
+        Removes the given coin from dynamic fields of given UID.
+        Transfers the removed coin to the given address.
+    */
+    fun transfer_coin_from_dof(
+        uid: &mut UID,
         to: address
     ) {
-        while (!vector::is_empty(&items)) {
-            let item = vector::pop_back(&mut items);
-            public_transfer(item, to);
-        };
-        vector::destroy_empty(items);
+        let coin = dof::remove<String, Coin<SUI>>(uid, utf8(b"escrowed_coin"));
+        public_transfer(coin, to);
     }
+
+    // fun transfer_items<T: key + store>(
+    //     items: vector<T>,
+    //     to: address
+    // ) {
+    //     while (!vector::is_empty(&items)) {
+    //         let item = vector::pop_back(&mut items);
+    //         public_transfer(item, to);
+    //     };
+    //     vector::destroy_empty(items);
+    // }
 
     fun check_items_ids<T: key + store>(
         items: &vector<T>,
-        ids: &VecSet<ID>
+        ids: &vector<ID>
     ) {
-        assert!(vector::length(items) == vec_set::size(ids), EWrongItem);
+        assert!(vector::length(items) == vector::length(ids), EWrongItem);
 
         let i = 0;
         while (i < vector::length(items)) {
             assert!(
-                vec_set::contains(ids,&object::id(vector::borrow(items, i))),
+                vector::contains(ids,&object::id(vector::borrow(items, i))),
                 EWrongItem
             );
             i = i + 1;
         };
     }
 
-    fun get_items_ids<T: key + store>(
-        items: &vector<T>,
-    ): VecSet<ID> {
-        let items_ids = vec_set::empty<ID>();
+    // fun get_items_ids<T: key + store>(
+    //     items: &vector<T>,
+    // ): VecSet<ID> {
+    //     let items_ids = vec_set::empty<ID>();
+    //
+    //     let i = 0;
+    //     while (i < vector::length(items)) {
+    //         let item = vector::borrow(items, i);
+    //         vec_set::insert(&mut items_ids, object::id(item));
+    //         i = i + 1;
+    //     };
+    //
+    //     items_ids
+    // }
+
+    /*
+        Checks if the given vector contains unique items.
+        Aborts if there are duplicates.
+    */
+    fun check_vector_for_duplicates<T: copy + drop>(
+        items: &vector<T>
+    ) {
+        let set = vec_set::empty<T>();
 
         let i = 0;
         while (i < vector::length(items)) {
-            let item = vector::borrow(items, i);
-            vec_set::insert(&mut items_ids, object::id(item));
+            vec_set::insert(&mut set, *vector::borrow(items, i));
             i = i + 1;
         };
-
-        items_ids
-    }
-
-    /*
-        Converts a vector of items into a set of items.
-        Aborts if there are duplicates.
-    */
-    fun vector_to_set<T: copy + drop>(
-        items: vector<T>
-    ): VecSet<T> {
-        let set = vec_set::empty<T>();
-
-        while (!vector::is_empty(&items)) {
-            let item = vector::pop_back(&mut items);
-            vec_set::insert(&mut set, item);
-        };
-        vector::destroy_empty(items);
-
-        set
     }
 }
