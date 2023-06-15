@@ -175,7 +175,7 @@ module holasui::escrow {
         The sender of the transaction must be the creator of the Escrow.
         The Escrow must be active.
     */
-    entry fun cancel_creator_escrow<T: key + store>(
+    entry fun cancel<T: key + store>(
         hub: &mut EscrowHub,
         escrow_id: ID,
         ctx: &mut TxContext
