@@ -1,7 +1,7 @@
 [package]
 name = "holasui-escrow"
 version = "0.0.0"
-#published-at = ""
+published-at = "0x27f071fa2d3003272c17101fc36439e9afe13dd382d1d16bcb0387e4c24598b2"
 
 [dependencies.Sui]
 git = "https://github.com/MystenLabs/sui.git"
@@ -12,4 +12,4 @@ rev = "434eb193a1e8ba9f140f862cdd68f072e607da1c"
 #rev = "b06ada015694890d7c46347b13fbc3e9a763513c"
 
 [addresses]
-holasui = "0x0"
+holasui = "0x27f071fa2d3003272c17101fc36439e9afe13dd382d1d16bcb0387e4c24598b2"
