@@ -8,8 +8,8 @@ git = "https://github.com/MystenLabs/sui.git"
 subdir = "crates/sui-framework/packages/sui-framework"
 # mainnet-1.5.0
 rev = "cc4ad6d8a3f05ad8641e977fad228e09a77453b8"
-## testnet-1.3.0
-#rev = "b06ada015694890d7c46347b13fbc3e9a763513c"
+## testnet-1.5.0
+#rev = "e7c5810936caf15916ed8e3bb893f96ac8273937"
 
 [addresses]
 holasui = "0x27f071fa2d3003272c17101fc36439e9afe13dd382d1d16bcb0387e4c24598b2"
