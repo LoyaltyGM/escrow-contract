@@ -44,7 +44,7 @@ The following error codes can be thrown during the execution of the smart contra
 
 ## Initialization Functions
 
-### `init(otw: ESCROW, ctx: &mut TxContext)`
+`init(otw: ESCROW, ctx: &mut TxContext)`
 
 - **`otw`**: Represents the One Time Witness struct
 - **`ctx`**: Represents the transaction context containing information about the current transaction.
@@ -53,15 +53,17 @@ Initializes the Escrow smart contract. This function should be called once durin
 
 ## Admin Functions
 
-### `update_fee(admin_cap: &AdminCap, hub: &mut EscrowHub, fee: u64)`
+`update_fee(admin_cap: &AdminCap, hub: &mut EscrowHub, fee: u64)`
 
 - **`admin_cap`**: Represents the administrative capability required for certain administrative functions.
 - **`hub`**: Represents the EscrowHub instance that will have its fee updated.
 - **`fee`**: The new fee amount in SUI to be set for creating an Escrow.
 
-Updates the fee for creating an Escrow. This function can only be called by an address with administrative capability (**`admin_cap`**). The **`fee`** parameter represents the new fee amount in SUI.
+Updates the fee for creating an Escrow. This function can only be called by an address with administrative capability (**`admin_cap`**). The **`fee`** parameter represents the new fee amount in SUI.  
 
-### `withdraw(admin_cap: &AdminCap, hub: &mut EscrowHub,ctx: &mut TxContext)`
+<br>
+
+`withdraw(admin_cap: &AdminCap, hub: &mut EscrowHub,ctx: &mut TxContext)`
 
 - **`admin_cap`**: Represents the administrative capability required for certain administrative functions.
 - **`hub`**: Represents the EscrowHub instance from which the accumulated fee balance will be withdrawn.
@@ -69,16 +71,18 @@ Updates the fee for creating an Escrow. This function can only be called by an a
 
 Withdraws the accumulated fee balance from the EscrowHub. This function can only be called by an address with administrative capability (**`admin_cap`**). The withdrawn amount will be sent to the caller's address.
 
-### `migrate_hub(admin_cap: &AdminCap, hub: &mut EscrowHub)`
+<br>
+
+`migrate_hub(admin_cap: &AdminCap, hub: &mut EscrowHub)`
 
 - **`admin_cap`**: Represents the administrative capability required for certain administrative functions.
 - **`hub`**: Represents the EscrowHub instance that will be migrated to the current contract version.
 
-Migrates the EscrowHub to the current contract version. This function can only be called by an address with administrative capability (`**admin_cap**`). It updates the `**version**` of the EscrowHub to the current contract version.
+Migrates the EscrowHub to the current contract version. This function can only be called by an address with administrative capability (**`admin_cap`**). It updates the **`version`** of the EscrowHub to the current contract version.
 
 ## Escrow’s Creator Functions
 
-### `create<T: key + store>(hub: &mut EscrowHub, creator_items: vector<T>, creator_coin: Coin<SUI>, recipient: address, recipient_items_ids: vector<ID>, recipient_coin_amount: u64, ctx: &mut TxContext)`
+`create<T: key + store>(hub: &mut EscrowHub, creator_items: vector<T>, creator_coin: Coin<SUI>, recipient: address, recipient_items_ids: vector<ID>, recipient_coin_amount: u64, ctx: &mut TxContext)`
 
 - **`hub`**: Represents the EscrowHub instance where the new Escrow will be added.
 - **`creator_items`**: A vector of items of type T deposited by the creator of the Escrow.
@@ -90,7 +94,9 @@ Migrates the EscrowHub to the current contract version. This function can only b
 
 Creates a new Escrow instance with the specified parameters. The caller of this function becomes the creator of the Escrow. The **`creator_items`** parameter is a vector of items of type T deposited by the creator. The **`creator_coin`** parameter is the amount of SUI deposited by the creator. The **`recipient`** parameter is the address of the recipient of the Escrow. The **`recipient_items_ids`** parameter is a vector of IDs representing items that the recipient should deposit. The **`recipient_coin_amount`** parameter is the amount of SUI that the recipient should deposit.
 
-### `cancel<T: key + store>(hub: &mut EscrowHub, escrow_id: ID, ctx: &mut TxContext)`
+<br>
+
+`cancel<T: key + store>(hub: &mut EscrowHub, escrow_id: ID, ctx: &mut TxContext)`
 
 - **`hub`**: Represents the EscrowHub instance from which the Escrow will be canceled.
 - **`escrow_id`**: The ID of the Escrow to be canceled.
@@ -100,7 +106,7 @@ Cancels an existing Escrow. This function can only be called by the creator of t
 
 ## Escrow’s Recipient Functions
 
-### `exchange<T: key + store>(hub: &mut EscrowHub, fee_coin: Coin<SUI>, escrow_id: ID, recipient_items: vector<T>, recipient_coin: Coin<SUI>, ctx: &mut TxContext)`
+`exchange<T: key + store>(hub: &mut EscrowHub, fee_coin: Coin<SUI>, escrow_id: ID, recipient_items: vector<T>, recipient_coin: Coin<SUI>, ctx: &mut TxContext)`
 
 - **`hub`**: Represents the EscrowHub instance containing the Escrow to be exchanged.
 - **`fee_coin`**: The amount of SUI paid as a fee for the exchange.
