@@ -9,8 +9,6 @@ seamless 1-to-1, 1-to-many, and many-to-many exchanges of sui objects.
 
 # Documentation
 
-# Documentation
-
 ## Constants
 
 - **`VERSION`**: The current version of the Escrow smart contract.
